@@ -49,7 +49,6 @@ if [[ $PrevIP == $CurrentIP ]]
 #       echo "$(Now) Текущий IP ($CurrentIP) равен предыдущему ($PrevIP). Дальнейших действий не требуется."
         exit
   fi
-echo $CurrentIP > $PrevIPFile
 
 ChangeRecord domain.com YANDEXDNSTOKENFORDOMAINCOM @ RECORD_ID
 ChangeRecord domain.com YANDEXDNSTOKENFORDOMAINCOM SUBDOMAIN RECORD_ID
