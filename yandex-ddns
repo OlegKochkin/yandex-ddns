@@ -1,0 +1,55 @@
+#!/bin/bash
+
+function Now {
+  date +"%d.%m.%Y %H:%M:%S"
+  }
+
+function ChangeRecord {
+  Domain=$1
+  Token=$2
+  SubDomain=$3
+  RecordID=$4
+  echo $(Now) Задание на изменение DNS записи $SubDomain.$Domain на $CurrentIP
+  DNSIP=$(curl -sH "PddToken: $Token" "https://pddimp.yandex.ru/api2/admin/dns/list?domain=$Domain" | jq -r ".records[] | select(.record_id==$RecordID) | .content")
+  if [[ $DNSIP != $CurrentIP ]]
+        then
+          if [[ $(curl -sH "PddToken: $Token" -d "domain=$Domain&record_id=$RecordID&subdomain=$SubDomain&ttl=300&content=$CurrentIP" 'https://pddimp.yandex.ru/api2/admin/dns/edit' | jq -r ".success") == "ok" ]]
+                then
+                  echo "$(Now) Адрес $SubDomain.$Domain изменён с $PrevIP на $CurrentIP"
+                else
+                  echo "$(Now) При попытке изменения записи $SubDomain.$Domain произошла ошибка"
+                fi
+        else
+          echo "$(Now) Адрес на DNS ($DNSIP) равен текущему ($CurrentIP). Изменение не требуется"
+        fi
+  }
+
+# Файл с предыдущим IP
+PrevIPFile=/usr/local/etc/PrevIP.txt
+
+# Получение текущего IP из двух разных источников
+CheckIP1=$(curl -s ifconfig.io)
+CheckIP2=$(curl -s http://myexternalip.com/raw)
+# echo $(Now) Текущие IP из разных источников: $CheckIP1, $CheckIP2
+# Предустановка текущего IP, как пустая строка
+CurrentIP=""
+
+# Если полученные IP из двух источников равны и являются валидным адресом, запоминаем текущий IP, иначе - завершение скрипта
+if [[ $CheckIP1 == $CheckIP2 ]]
+  then
+        ip route get $CheckIP1 > /dev/null 2>&1 && CurrentIP=$CheckIP1 || exit
+  else
+        echo $(Now) Текущие IP из разных источников не равны. Завершение скрипта.
+        exit
+  fi
+
+PrevIP=$(test -f $PrevIPFile && cat $PrevIPFile)
+if [[ $PrevIP == $CurrentIP ]]
+  then
+#       echo "$(Now) Текущий IP ($CurrentIP) равен предыдущему ($PrevIP). Дальнейших действий не требуется."
+        exit
+  fi
+echo $CurrentIP > $PrevIPFile
+
+ChangeRecord domain.com YANDEXDNSTOKENFORDOMAINCOM @ RECORD_ID
+ChangeRecord domain.com YANDEXDNSTOKENFORDOMAINCOM SUBDOMAIN RECORD_ID
